@@ -1,0 +1,95 @@
+#TAG_USE_FLAG := $(shell svn info | grep URL | cut -d " " -f 2 | xargs basename | awk -F_ '{print $$2}')
+#ifeq ($(TAG_USE_FLAG),)
+#  TAG_USE := \"$(shell svn info | grep UUID -A 1 | tail -n 1 | cut -d " " -f 2 > build_tag; cat build_tag)\"
+#else
+#  TAG_USE := \"$(shell svn info | grep URL | cut -d " " -f 2 | xargs basename | awk -F_ '{print $$2}' | sed 's/-/./g' > build_tag; cat build_tag)\"
+#endif
+
+#SVN_URL := $(shell svn info | grep URL | cut -d " " -f 2 | egrep -o "(trunk|tags|branches).*")
+#TAG_USE := $(shell svn info --xml | grep '<commit' -A 1 | tail -n 1 | cut -d '"' -f 2)
+
+ifndef ARCH
+ARCH=linux
+endif
+
+H_x86 := i686-w64-mingw32-
+H_x64 := x86_64-w64-mingw32-
+H_ :=
+H_linux := 
+H_cygwin :=
+P_x86 := mingw/x86
+P_x64 := mingw/x64
+P_ := lib
+P_linux := lib
+P_cygwin := lib
+CROSS_COMPILE := 
+CROSS_PATH := $(P_$(ARCH))
+CROSS_PATH_BIN := bin/$(ARCH)
+
+CC := gcc 
+CXX := $(CROSS_COMPILE)g++ 
+LD := $(CROSS_COMPILE)ld 
+STRIP := $(CROSS_COMPILE)strip 
+OBJCOPY := $(CROSS_COMPILE)objcopy 
+OBJDUMP := $(CROSS_COMPILE)objdump 
+AR := $(CROSS_COMPILE)ar cr 
+RANLIB := $(CROSS_COMPILE)ranlib 
+
+CYGWIN := $(shell uname -a | grep -o Cygwin)
+
+ifeq ($(SVN_URL),)
+SVN_URL := \"built-alone\"
+else
+SVN_URL := \"$(SVN_URL)\"
+endif
+ifeq ($(TAG_USE),)
+TAG_USE := \"built-alone\"
+else
+TAG_USE := \"$(TAG_USE)\"
+endif
+
+#CFLAGS   += -DTAG_VERSION="$(TAG_USE)" -DSVN_URL="$(SVN_URL)"
+#CXXFLAGS += -DTAG_VERSION="$(TAG_USE)" -DSVN_URL="$(SVN_URL)"
+
+CCFLAGS = $(CFLAGS)
+#	@echo $($(1)) $($(1)FLAGS) -c -o $@ $<
+#	@echo $($(1)) -o $@ $^ $(LIB) $(LIBPATH)
+#	@echo $(AR) $@ $^
+#	@echo $($(1)) -o $@ $^ $(LIBPATH) $(2)
+
+define COMPILE
+    @echo -e $(1) \\t $<
+    @$($(1)) $($(1)FLAGS) -c -o $@ $<
+endef
+
+define COMPILE_OBJ
+    @echo -e $(1) \\t $<
+    $($(1)) $($(2)) -c -o $@ $<
+endef
+
+define ARCHIVE
+    @echo -e AR \\t $@
+    @$(AR) $@ $^ 2>/dev/null
+endef
+
+define ASSEMBLE
+    @echo -e LD-$(1) \\t $@
+    @$($(1)) -o $@ $^ $(LIB) $(LIBPATH)
+endef
+
+define ASSEMBLE_OBJS
+    @echo -e LD-$(1) \\t $@
+    @$($(1)) -o $@ $($(2)) $(LIBPATH)
+endef
+
+define ASSEMBLE_EXTRA
+    @echo -e LD-$(1) \\t $@
+    @gcc -o $@ $^ $(LIBPATH) $(2)
+endef
+
+COMPILE_CC = $(call COMPILE,CC)
+COMPILE_CXX = $(call COMPILE,CXX)
+
+define copyto
+    @cp -f $@ $(1)
+endef
